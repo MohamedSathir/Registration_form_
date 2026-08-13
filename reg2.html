@@ -5,6 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Registeration Form</title>
+    <!-- Supabase JS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
 <body>
@@ -14,6 +16,7 @@
                 opacity: 0;
                 transform: translateY(-30px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -25,6 +28,7 @@
                 opacity: 0;
                 transform: translateY(40px) scale(0.95);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0) scale(1);
@@ -140,39 +144,253 @@
             background-color: #a93226;
             border-color: #a93226;
         }
+
+        .error-msg {
+            color: #b30000;
+            font-size: 14px;
+            font-weight: bold;
+            margin-left: 8px;
+            display: inline-block;
+        }
+
+        input.invalid {
+            border-color: #d9534f !important;
+            box-shadow: 0 0 5px rgba(217, 83, 79, 0.6) !important;
+        }
+
+        .status-msg {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: bold;
+            display: none;
+            text-align: center;
+        }
+
+        .status-msg.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+
+        .status-msg.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
     </style>
     <h1>Student Registeration Form</h1>
     <div>
-    <form>
-        <label>Name :</label>
-        <input type="text" id="fname"><br><br>
-        <label>D.O.B :</label>
-        <input type="date" id="fdob"><br><br>
-        <label>Gender :</label>
-        <input type="radio" id="gen-male" name="gender" value="male">
-        <label for="gen-male">Male</label>
-        <input type="radio" id="gen-female" name="gender" value="female">
-        <label for="gen-female">Female</label>
-        <input type="radio" id="gen-other" name="gender" value="other">
-        <label>Other</label><br><br>
-        <label>Phone :</label>
-        <input type="number" id="fph"><br><br>
-        <label>Address :</label>
-        <input type="text" id="faddr"><br><br>
-        <label>Email :</label>
-        <input type="email" id="fmail"><br><br>
-        <label>Password :</label>
-        <input type="password" id="fpass"><br><br>
-        <label>Department :</label><br>
-        <input type="radio" id="fdep" name="fdep">computer Science<br>
-        <input type="radio" id="fdep" name="fdep">ECE<br>
-        <input type="radio" id="fdep" name="fdep">IT<br>
-        <input type="radio" id="fdep" name="fdep">EEE<br>
-        <input type="radio" id="fdep" name="fdep">Mechanical<br><br>
-        <input type="submit"class="submit" value="Submit">
-        <input type="reset" class="submit" value="Clear">
-    </form>
+        <form id="studentForm" novalidate>
+            <label for="fname">Name :</label>
+            <input type="text" id="fname"><span class="error-msg" id="err-fname"></span><br><br>
+            <label for="fdob">D.O.B :</label>
+            <input type="date" id="fdob"><span class="error-msg" id="err-fdob"></span><br><br>
+            <label>Gender :</label>
+            <input type="radio" id="gen-male" name="gender" value="male">
+            <label for="gen-male">Male</label>
+            <input type="radio" id="gen-female" name="gender" value="female">
+            <label for="gen-female">Female</label>
+            <input type="radio" id="gen-other" name="gender" value="other">
+            <label for="gen-other">Other</label>
+            <span class="error-msg" id="err-gender"></span><br><br>
+            <label for="fph">Phone :</label>
+            <input type="number" id="fph"><span class="error-msg" id="err-fph"></span><br><br>
+            <label for="faddr">Address :</label>
+            <input type="text" id="faddr"><span class="error-msg" id="err-faddr"></span><br><br>
+            <label for="fmail">Email :</label>
+            <input type="email" id="fmail"><span class="error-msg" id="err-fmail"></span><br><br>
+            <label for="fpass">Password :</label>
+            <input type="password" id="fpass"><span class="error-msg" id="err-fpass"></span><br><br>
+            <label>Department :</label>
+            <span class="error-msg" id="err-fdep"></span><br>
+            <input type="radio" id="dep-cs" name="fdep" value="Computer Science">
+            <label for="dep-cs">Computer Science</label><br>
+            <input type="radio" id="dep-ece" name="fdep" value="ECE">
+            <label for="dep-ece">ECE</label><br>
+            <input type="radio" id="dep-it" name="fdep" value="IT">
+            <label for="dep-it">IT</label><br>
+            <input type="radio" id="dep-eee" name="fdep" value="EEE">
+            <label for="dep-eee">EEE</label><br>
+            <input type="radio" id="dep-mech" name="fdep" value="Mechanical">
+            <label for="dep-mech">Mechanical</label><br><br>
+            <input type="submit" id="submitBtn" class="submit" value="Submit">
+            <input type="reset" class="submit" value="Clear">
+            <div id="statusMsg" class="status-msg"></div>
+        </form>
     </div>
+    <script>
+        // Supabase Configuration Credentials
+        // Replace with your project details from Supabase Dashboard -> Settings -> API
+        const SUPABASE_URL = 'https://kmxyiwdbrxmidglaakob.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_MmqNqcEHrFfEX73Kt0A-Yw_QokoBAV7';
+
+        // Initialize Supabase Client
+        let supabaseClient = null;
+        if (typeof window.supabase !== 'undefined' && SUPABASE_URL !== 'YOUR_SUPABASE_URL') {
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        }
+
+        document.getElementById('studentForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            let isValid = true;
+
+            const statusMsg = document.getElementById('statusMsg');
+            statusMsg.className = 'status-msg';
+            statusMsg.style.display = 'none';
+
+            function setError(id, msg) {
+                const errSpan = document.getElementById('err-' + id);
+                const inputElem = document.getElementById(id);
+                if (errSpan) errSpan.textContent = msg;
+                if (inputElem) inputElem.classList.add('invalid');
+                isValid = false;
+            }
+
+            function clearError(id) {
+                const errSpan = document.getElementById('err-' + id);
+                const inputElem = document.getElementById(id);
+                if (errSpan) errSpan.textContent = '';
+                if (inputElem) inputElem.classList.remove('invalid');
+            }
+
+            ['fname', 'fdob', 'gender', 'fph', 'faddr', 'fmail', 'fpass', 'fdep'].forEach(clearError);
+
+            // 1. Name: required, letters & spaces only, min 2 chars
+            const name = document.getElementById('fname').value.trim();
+            if (!name) {
+                setError('fname', 'Name is required.');
+            } else if (!/^[A-Za-z\s]{2,50}$/.test(name)) {
+                setError('fname', 'Only letters & spaces (min 2 chars).');
+            }
+
+            // 2. D.O.B: required and cannot be future date
+            const dob = document.getElementById('fdob').value;
+            if (!dob) {
+                setError('fdob', 'Date of birth is required.');
+            } else {
+                const dobDate = new Date(dob);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                if (dobDate > today) {
+                    setError('fdob', 'D.O.B cannot be in the future.');
+                }
+            }
+
+            // 3. Gender: must be selected
+            const genderChecked = document.querySelector('input[name="gender"]:checked');
+            if (!genderChecked) {
+                setError('gender', 'Please select a gender.');
+            }
+
+            // 4. Phone: exactly 10 digits
+            const phone = document.getElementById('fph').value.trim();
+            if (!phone) {
+                setError('fph', 'Phone number is required.');
+            } else if (!/^\d{10}$/.test(phone)) {
+                setError('fph', 'Must be a 10-digit number.');
+            }
+
+            // 5. Address: minimum 5 characters
+            const address = document.getElementById('faddr').value.trim();
+            if (!address) {
+                setError('faddr', 'Address is required.');
+            } else if (address.length < 5) {
+                setError('faddr', 'Address must be at least 5 characters.');
+            }
+
+            // 6. Email: valid email format
+            const email = document.getElementById('fmail').value.trim();
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!email) {
+                setError('fmail', 'Email is required.');
+            } else if (!emailRegex.test(email)) {
+                setError('fmail', 'Enter a valid email address.');
+            }
+
+            // 7. Password: minimum 6 characters
+            const password = document.getElementById('fpass').value;
+            if (!password) {
+                setError('fpass', 'Password is required.');
+            } else if (password.length < 6) {
+                setError('fpass', 'Password must be at least 6 characters.');
+            }
+
+            // 8. Department: must be selected
+            const depChecked = document.querySelector('input[name="fdep"]:checked');
+            if (!depChecked) {
+                setError('fdep', 'Please select a department.');
+            }
+
+            if (!isValid) return;
+
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.value = 'Submitting...';
+            submitBtn.disabled = true;
+
+            if (!supabaseClient) {
+                setTimeout(() => {
+                    statusMsg.textContent = 'Validation passed! Please set SUPABASE_URL and SUPABASE_ANON_KEY in script to connect to Supabase.';
+                    statusMsg.className = 'status-msg error';
+                    submitBtn.value = 'Submit';
+                    submitBtn.disabled = false;
+                }, 400);
+                return;
+            }
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from('students')
+                    .insert([
+                        {
+                            name: name,
+                            dob: dob,
+                            gender: genderChecked.value,
+                            phone: phone,
+                            address: address,
+                            email: email,
+                            password: password,
+                            department: depChecked.value
+                        }
+                    ]);
+
+                if (error) throw error;
+
+                statusMsg.textContent = 'Student registered successfully in Supabase!';
+                statusMsg.className = 'status-msg success';
+                document.getElementById('studentForm').reset();
+            } catch (err) {
+                statusMsg.textContent = 'Supabase Error: ' + (err.message || JSON.stringify(err));
+                statusMsg.className = 'status-msg error';
+            } finally {
+                submitBtn.value = 'Submit';
+                submitBtn.disabled = false;
+            }
+        });
+
+        // Clear errors on reset
+        document.getElementById('studentForm').addEventListener('reset', function () {
+            ['fname', 'fdob', 'gender', 'fph', 'faddr', 'fmail', 'fpass', 'fdep'].forEach(id => {
+                const errSpan = document.getElementById('err-' + id);
+                const inputElem = document.getElementById(id);
+                if (errSpan) errSpan.textContent = '';
+                if (inputElem) inputElem.classList.remove('invalid');
+            });
+            const statusMsg = document.getElementById('statusMsg');
+            statusMsg.style.display = 'none';
+        });
+
+        // Clear error dynamically as user edits input
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('input', function () {
+                this.classList.remove('invalid');
+                const errSpan = document.getElementById('err-' + this.id);
+                if (errSpan) errSpan.textContent = '';
+            });
+        });
+    </script>
 </body>
 
 </html>
